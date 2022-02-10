@@ -1,3 +1,3 @@
 # GearSetter
 
-Automatically Set Gearsets with the reccomended gear
+FFXIV Dalamud Plugin to automatically generate gearsets.
