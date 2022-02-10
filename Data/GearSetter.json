@@ -1,0 +1,13 @@
+{
+  "Author": "clbx",
+  "Name": "GearSetter",
+  "Punchline": "Automatically set gearsets for classes",
+  "Description": "No",
+  "InternalName": "GearSetter",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "gear",
+    "inventory",
+    "gearset"
+  ]
+}
