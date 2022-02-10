@@ -16,7 +16,11 @@ using Dalamud.Plugin;
 using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
 
+using System;
+using System.Runtime.InteropServices;
+
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Component.Excel;
 
 
@@ -32,7 +36,6 @@ namespace GearSetter
         private DalamudPluginInterface PluginInterface { get; init; }
         private CommandManager CommandManager { get; init; }
         private Configuration Configuration { get; init; }
-        private PluginUI PluginUi { get; init; }
 
         private DataManager DataManager { get; init; }
 
@@ -52,59 +55,129 @@ namespace GearSetter
             // you might normally want to embed resources and load them from the manifest stream
             var imagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
             var goatImage = this.PluginInterface.UiBuilder.LoadImage(imagePath);
-            this.PluginUi = new PluginUI(this.Configuration, goatImage);
 
+            /*
             this.CommandManager.AddHandler(commandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "schleppin"
             });
+            */
 
             this.PluginInterface.UiBuilder.Draw += DrawUI;
-            this.PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
         }
 
 
 
         public void Dispose()
         {
-            this.PluginUi.Dispose();
             this.CommandManager.RemoveHandler(commandName);
         }
-
+        
+        /**
         private void OnCommand(string command, string args)
         {
             // in response to the slash command, just display our main ui
             this.PluginUi.Visible = true;
 
-        }
+        }**/
 
 
         private unsafe void DrawUI()
         {
 
-
+            var gearsets = RaptureGearsetModule.Instance();
             var inventoryManager = InventoryManager.Instance();
             var inventory = inventoryManager->GetInventoryContainer(InventoryType.Inventory1);
             var itemCSV = DataManager.GetExcelSheet<Item>()!;
+            var jobCSV = DataManager.GetExcelSheet<ClassJobCategory>()!;
+            var iLevelCSV = DataManager.GetExcelSheet<ItemLevel>()!;
+           
+            
 
-   
             ImGui.SetNextWindowSize(new Vector2(375, 330), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSizeConstraints(new Vector2(375, 330), new Vector2(float.MaxValue, float.MaxValue));
-            ImGui.Begin("Inventory", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
-                for (int i = 0; i < inventory->Size; i++)
+            ImGui.Begin("GearSetter");
+
+            if (ImGui.BeginTabBar("Main"))
+            {
+                if (ImGui.BeginTabItem("Job ID Stuff"))
                 {
-                    ImGui.Text($"Item ID: {inventory->Items[i].ItemID}");
+
+                    //https://ffxiv.pf-n.co/xivapi?url=%2FClassJob
+
+                    var gearsetModule = RaptureGearsetModule.Instance();
+
+                    var gearset = gearsetModule->Gearset[0];
+                    var i = 0;
+
+                    while(gearset->ClassJob != 0)
+                    {
+                        gearset = gearsetModule->Gearset[i];
+                        var gearsetName = Marshal.PtrToStringAnsi((IntPtr)gearset->Name);
+                        var gearsetID = gearset->ID;
+                        i++;
+
+                        if(gearset->ClassJob == 0)
+                        {
+                            break;
+                        }
+                        
+                        if(ImGui.CollapsingHeader($"{gearset->ID}: { gearsetName}  {gearset->ClassJob}"))
+                        {
+                            //iLevelCSV.GetRow(gearset->Head.ItemID);
+                            //var shit = itemCSV.GetRow(gearset->Head.ItemID);
+                            //var fuck = iLevelCSV.GetRow(shit)
+                            ImGui.Text($"{gearset->Head.ItemID} Head: {itemCSV.GetRow(gearset->Head.ItemID).Name}. Lvl: {itemCSV.GetRow(gearset->Head.ItemID).LevelEquip}");
+                            ImGui.Text($"{gearset->Body.ItemID} Body: {itemCSV.GetRow(gearset->Body.ItemID).Name}. Lvl: {itemCSV.GetRow(gearset->Body.ItemID).LevelEquip}");
+                            //ImGui.Text($"{gearset->MainHand.ItemID} Main Hand: {itemCSV.GetRow(gearset->MainHand.ItemID).Name}. Lvl: {itemCSV.GetRow(gearset->MainHand.ItemID).LevelEquip}");
+                            ImGui.Text($"{gearset->MainHand.ItemID} Main Hand: ");
 
 
+                        }
+
+                    }
                     
-               
+                    ImGui.EndTabItem();
+
                 }
+                if (ImGui.BeginTabItem("Inventory"))
+                {
+                    
+
+                    for (int i = 0; i < inventory->Size; i++)
+                    {
+
+                        //Class Job Thing
+
+                        ImGui.Text($"Item ID: {inventory->Items[i].ItemID}");
+
+                        //The row has a lot of useful information;
+                        var row = itemCSV.GetRow((uint)inventory->Items[i].ItemID);
+
+                        //This has the job code for the item https://ffxiv.pf-n.co/xivapi?url=%2FClassJobCategory for more info. 
+                        var jobRowID = row.ClassJobCategory.Row;
+                        var job = jobCSV.GetRow(jobRowID);
+
+                        ImGui.Text($"{row.Name}");
+                        ImGui.Text($"MCH Equip? {job.MCH}");
+
+
+                        ImGui.Text($"");
+                        ImGui.EndTabItem();
+                    }
+                    
+                }
+                if (ImGui.BeginTabItem("Settings"))
+                {
+
+                    ImGui.EndTabItem();
+                }
+
+            }
             ImGui.End();
+
+            ImGui.ShowDemoWindow();
         }
 
-        private void DrawConfigUI()
-        {
-            this.PluginUi.SettingsVisible = true;
-        }
     }
 }
